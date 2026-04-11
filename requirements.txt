@@ -1,11 +1,10 @@
 fastapi
 uvicorn[standard]
-mysql-connector-python
+psycopg2-binary
 python-dotenv
 pydantic
 
-RAG dependencies:
+#RAG dependencies:
 google-genai
 chromadb
 sentence-transformers
-python-dotenv
