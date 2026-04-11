@@ -3,3 +3,7 @@ uvicorn[standard]
 mysql-connector-python
 python-dotenv
 pydantic
+google-genai
+chromadb
+sentence-transformers
+python-dotenv
