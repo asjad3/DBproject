@@ -3,6 +3,8 @@ uvicorn[standard]
 mysql-connector-python
 python-dotenv
 pydantic
+
+RAG dependencies:
 google-genai
 chromadb
 sentence-transformers
