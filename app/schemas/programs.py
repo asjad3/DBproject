@@ -1,27 +1,25 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date
-from typing import Optional
 
 
 class ProgramCreate(BaseModel):
     disaster_id: int
     program_name: str
-    objectives: Optional[str] = None
+    objectives: str | None = None
     start_date: date
-    end_date: Optional[date] = None
+    end_date: date | None = None
 
 
 class ProgramResponse(BaseModel):
     program_id: int
     disaster_id: int
     program_name: str
-    objectives: Optional[str]
+    objectives: str | None
     start_date: date
-    end_date: Optional[date]
+    end_date: date | None
     status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ActiveProgramResponse(BaseModel):
@@ -30,10 +28,12 @@ class ActiveProgramResponse(BaseModel):
     disaster_name: str
     severity_level: str
     start_date: date
-    end_date: Optional[date]
+    end_date: date | None
     status: str
     enrolled_org_count: int
     total_requirements: int
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EnrollmentRequest(BaseModel):
@@ -46,6 +46,8 @@ class GapReportItem(BaseModel):
     product_name: str
     quantity_required: int
     quantity_fulfilled: int
-    fulfillment_pct: Optional[float]
+    fulfillment_pct: float | None
     gap_units: int
     priority: str
+
+    model_config = ConfigDict(from_attributes=True)

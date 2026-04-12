@@ -23,7 +23,10 @@ class RetrievalEngine:
             
             logger.info(f"Connecting to ChromaDB at: {CHROMA_PATH}")
             self.client = chromadb.PersistentClient(path=CHROMA_PATH)
-            self.collection = self.client.get_collection("disasterlink_docs")
+            self.collection = self.client.get_or_create_collection(
+                name="disasterlink_docs",
+                metadata={"hnsw:space": "cosine"}
+            )
         except Exception as e:
             logger.error(f"Failed to initialize RetrievalEngine: {e}")
             raise

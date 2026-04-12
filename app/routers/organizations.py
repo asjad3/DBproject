@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.database import get_connection, release_connection
+from app.database import get_cursor
 from app.schemas.organizations import (
     OrganizationCreate, OrganizationResponse, OrganizationLeaderboardResponse,
 )
@@ -9,9 +9,7 @@ router = APIRouter(prefix="/organizations", tags=["Organizations"])
 
 @router.post("/", response_model=OrganizationResponse, status_code=201)
 def create_organization(data: OrganizationCreate):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute(
             """INSERT INTO organization (org_category_id, org_name, registration_number,
                contact_email, contact_phone, government_tier, international_flag,
@@ -22,61 +20,44 @@ def create_organization(data: OrganizationCreate):
              data.international_flag, data.registration_authority),
         )
         row = cur.fetchone()
-        conn.commit()
-        cur.close()
         return _map_org(row)
-    finally:
-        release_connection(conn)
 
 
 @router.get("/", response_model=list[OrganizationResponse])
 def list_organizations(category_id: int | None = None, approval_status: str | None = None):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
-        query = "SELECT * FROM organization WHERE 1=1"
-        params = []
-        if category_id:
-            query += " AND org_category_id = %s"
-            params.append(category_id)
-        if approval_status:
-            query += " AND approval_status = %s"
-            params.append(approval_status)
-        query += " ORDER BY org_name"
-        cur.execute(query, params)
+    conditions = []
+    params = []
+    if category_id:
+        conditions.append("org_category_id = %s")
+        params.append(category_id)
+    if approval_status:
+        conditions.append("approval_status = %s")
+        params.append(approval_status)
+
+    where = " AND ".join(conditions) if conditions else "1=1"
+
+    with get_cursor() as cur:
+        cur.execute(f"SELECT * FROM organization WHERE {where} ORDER BY org_name", params)
         rows = cur.fetchall()
-        cur.close()
         return [_map_org(r) for r in rows]
-    finally:
-        release_connection(conn)
 
 
 @router.get("/{org_id}", response_model=OrganizationResponse)
 def get_organization(org_id: int):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute("SELECT * FROM organization WHERE org_id = %s", (org_id,))
         row = cur.fetchone()
-        cur.close()
         if not row:
             raise HTTPException(404, "Organization not found")
         return _map_org(row)
-    finally:
-        release_connection(conn)
 
 
 @router.get("/leaderboard", response_model=list[OrganizationLeaderboardResponse])
 def leaderboard():
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute("SELECT * FROM v_org_fulfillment_leaderboard")
         rows = cur.fetchall()
-        cur.close()
         return [_map_leader(r) for r in rows]
-    finally:
-        release_connection(conn)
 
 
 def _map_org(row):

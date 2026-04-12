@@ -1,6 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date
-from typing import Optional
 
 
 class IncidentReportCreate(BaseModel):
@@ -8,7 +7,7 @@ class IncidentReportCreate(BaseModel):
     location_id: int
     report_title: str
     report_body: str
-    report_date: Optional[date] = None
+    report_date: date | None = None
     severity_flag: str = "Info"
     submitted_by: str
 
@@ -23,5 +22,4 @@ class IncidentReportResponse(BaseModel):
     severity_flag: str
     submitted_by: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

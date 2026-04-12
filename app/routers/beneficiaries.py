@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.database import get_connection, release_connection
+from app.database import get_cursor
 from app.schemas.beneficiaries import (
     BeneficiaryCreate, BeneficiaryResponse,
     AidDistributionCreate, AidHistoryResponse,
@@ -10,9 +10,7 @@ router = APIRouter(prefix="/beneficiaries", tags=["Beneficiaries"])
 
 @router.post("/", response_model=BeneficiaryResponse, status_code=201)
 def create_beneficiary(data: BeneficiaryCreate):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute(
             """INSERT INTO beneficiary (location_id, cnic_or_id, full_name,
                contact_number, family_size, address_province, address_district,
@@ -23,18 +21,12 @@ def create_beneficiary(data: BeneficiaryCreate):
              data.address_district, data.address_street),
         )
         row = cur.fetchone()
-        conn.commit()
-        cur.close()
         return _map_beneficiary(row)
-    finally:
-        release_connection(conn)
 
 
 @router.get("/", response_model=list[BeneficiaryResponse])
 def list_beneficiaries(location_id: int | None = None):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         if location_id:
             cur.execute(
                 "SELECT * FROM beneficiary WHERE location_id = %s ORDER BY registration_date DESC",
@@ -43,32 +35,22 @@ def list_beneficiaries(location_id: int | None = None):
         else:
             cur.execute("SELECT * FROM beneficiary ORDER BY registration_date DESC")
         rows = cur.fetchall()
-        cur.close()
         return [_map_beneficiary(r) for r in rows]
-    finally:
-        release_connection(conn)
 
 
 @router.get("/{beneficiary_id}", response_model=BeneficiaryResponse)
 def get_beneficiary(beneficiary_id: int):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute("SELECT * FROM beneficiary WHERE beneficiary_id = %s", (beneficiary_id,))
         row = cur.fetchone()
-        cur.close()
         if not row:
             raise HTTPException(404, "Beneficiary not found")
         return _map_beneficiary(row)
-    finally:
-        release_connection(conn)
 
 
 @router.post("/{beneficiary_id}/aid", status_code=201)
 def record_aid_distribution(beneficiary_id: int, data: AidDistributionCreate):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute(
             """INSERT INTO aid_distribution (beneficiary_id, product_id, program_id,
                org_id, team_id, quantity_distributed, distribution_date, notes)
@@ -77,27 +59,18 @@ def record_aid_distribution(beneficiary_id: int, data: AidDistributionCreate):
              data.team_id, data.quantity_distributed, data.distribution_date,
              data.notes),
         )
-        conn.commit()
-        cur.close()
         return {"message": "Aid distribution recorded successfully"}
-    finally:
-        release_connection(conn)
 
 
 @router.get("/{beneficiary_id}/history", response_model=list[AidHistoryResponse])
 def aid_history(beneficiary_id: int):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute(
             "SELECT * FROM v_beneficiary_aid_history WHERE beneficiary_id = %s",
             (beneficiary_id,),
         )
         rows = cur.fetchall()
-        cur.close()
         return [_map_history(r) for r in rows]
-    finally:
-        release_connection(conn)
 
 
 def _map_beneficiary(row):

@@ -49,33 +49,84 @@ def get_reports_from_postgres():
     conn = psycopg2.connect(
         host=os.getenv("PG_HOST", "localhost"),
         port=os.getenv("PG_PORT", 5432),
-        user=os.getenv("PG_USER", "new_user"),
-        password=os.getenv("PG_PASSWORD", "strong_password"),
+        user=os.getenv("PG_USER", "postgres"),
+        password=os.getenv("PG_PASSWORD", ""),
         database=os.getenv("PG_DATABASE", "disasterlink")
     )
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute("""
+            SELECT
+                ir.report_id,
+                ir.report_title,
+                ir.report_body,
+                ir.report_date,
+                ir.severity_flag,
+                ir.submitted_by,
+                dl.district,
+                dl.province,
+                ft.team_name,
+                o.org_name
+            FROM incident_report ir
+            JOIN disaster_location dl ON ir.location_id = dl.location_id
+            JOIN field_team ft ON ir.team_id = ft.team_id
+            JOIN organization o ON ft.org_id = o.org_id
+        """)
+        reports = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
 
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cursor.execute("""
-        SELECT
-            ir.report_id,
-            ir.report_title,
-            ir.report_body,
-            ir.report_date,
-            ir.severity_flag,
-            ir.submitted_by,
-            dl.district,
-            dl.province,
-            ft.team_name,
-            o.org_name
-        FROM incident_report ir
-        JOIN disaster_location dl ON ir.location_id = dl.location_id
-        JOIN field_team ft ON ir.team_id = ft.team_id
-        JOIN organization o ON ft.org_id = o.org_id
-    """)
+    return [
+        {
+            "report_id":    r["report_id"],
+            "report_title": r["report_title"],
+            "report_body":  r["report_body"],
+            "report_date":  str(r["report_date"]),
+            "severity_flag": r["severity_flag"],
+            "submitted_by": r["submitted_by"],
+            "district":     r["district"],
+            "province":     r["province"],
+            "team_name":    r["team_name"],
+            "org_name":     r["org_name"],
+        }
+        for r in reports
+    ]
 
-    reports = cursor.fetchall()
-    cursor.close()
-    conn.close()
+
+def get_reports_from_mysql():
+    import mysql.connector
+
+    conn = mysql.connector.connect(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=os.getenv("MYSQL_PORT", 3306),
+        user=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+        database=os.getenv("MYSQL_DATABASE", "disasterlink")
+    )
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT
+                ir.report_id,
+                ir.report_title,
+                ir.report_body,
+                ir.report_date,
+                ir.severity_flag,
+                ir.submitted_by,
+                dl.district,
+                dl.province,
+                ft.team_name,
+                o.org_name
+            FROM incident_report ir
+            JOIN disaster_location dl ON ir.location_id = dl.location_id
+            JOIN field_team ft ON ir.team_id = ft.team_id
+            JOIN organization o ON ft.org_id = o.org_id
+        """)
+        reports = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
 
     return [
         {
@@ -95,16 +146,13 @@ def get_reports_from_postgres():
 
 
 def get_reports():
-    USE_MOCK = False  
+    db_type = os.getenv("DB_TYPE", "postgres").lower()
 
-    if USE_MOCK:
+    if db_type == "mock":
         from mock_data import MOCK_REPORTS
         print("Using mock data")
         return MOCK_REPORTS
-
-    db_type = os.getenv("DB_TYPE", "postgres").lower()
-
-    if db_type == "supabase":
+    elif db_type == "supabase":
         return get_reports_from_supabase()
     elif db_type == "mysql":
         return get_reports_from_mysql()

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.database import get_connection, release_connection
+from app.database import get_cursor, get_connection, release_connection
 from app.schemas.programs import (
     ProgramCreate, ProgramResponse, ActiveProgramResponse,
     EnrollmentRequest, GapReportItem,
@@ -10,9 +10,7 @@ router = APIRouter(prefix="/programs", tags=["Relief Programs"])
 
 @router.post("/", response_model=ProgramResponse, status_code=201)
 def create_program(data: ProgramCreate):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute(
             """INSERT INTO relief_program (disaster_id, program_name, objectives,
                start_date, end_date)
@@ -21,18 +19,12 @@ def create_program(data: ProgramCreate):
              data.start_date, data.end_date),
         )
         row = cur.fetchone()
-        conn.commit()
-        cur.close()
         return _map_program(row)
-    finally:
-        release_connection(conn)
 
 
 @router.get("/", response_model=list[ProgramResponse])
 def list_programs(status: str | None = None):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         if status:
             cur.execute(
                 "SELECT * FROM relief_program WHERE status = %s ORDER BY start_date DESC",
@@ -41,29 +33,22 @@ def list_programs(status: str | None = None):
         else:
             cur.execute("SELECT * FROM relief_program ORDER BY start_date DESC")
         rows = cur.fetchall()
-        cur.close()
         return [_map_program(r) for r in rows]
-    finally:
-        release_connection(conn)
 
 
 @router.get("/active", response_model=list[ActiveProgramResponse])
 def active_programs():
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute("SELECT * FROM v_active_program_summary")
         rows = cur.fetchall()
-        cur.close()
         return [_map_active(r) for r in rows]
-    finally:
-        release_connection(conn)
 
 
 @router.post("/{program_id}/enroll", status_code=201)
 def enroll_organization(program_id: int, data: EnrollmentRequest):
-    conn = get_connection()
+    conn = None
     try:
+        conn = get_connection()
         cur = conn.cursor()
         cur.execute(
             "CALL sp_register_org_for_program(%s, %s)",
@@ -73,26 +58,24 @@ def enroll_organization(program_id: int, data: EnrollmentRequest):
         cur.close()
         return {"message": f"Organization {data.org_id} enrolled in program {program_id}"}
     except Exception as e:
-        conn.rollback()
+        if conn:
+            conn.rollback()
         raise HTTPException(400, str(e))
     finally:
-        release_connection(conn)
+        if conn:
+            cur.close()
+            release_connection(conn)
 
 
 @router.get("/{program_id}/gap-report", response_model=list[GapReportItem])
 def gap_report(program_id: int, threshold: float = 70):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute(
             "SELECT * FROM sp_requirement_gap_report(%s, %s)",
             (program_id, threshold),
         )
         rows = cur.fetchall()
-        cur.close()
         return [_map_gap(r) for r in rows]
-    finally:
-        release_connection(conn)
 
 
 def _map_program(row):

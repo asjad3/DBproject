@@ -1,17 +1,18 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, ConfigDict
 
 
 class RAGQuery(BaseModel):
     query: str
     top_k: int = 3
-    filters: Optional[dict] = None
+    filters: dict | None = None
 
 
 class RAGSource(BaseModel):
-    id: Optional[int] = None
-    location: Optional[str] = None
-    score: Optional[float] = None
+    id: int | None = None
+    location: str | None = None
+    score: float | None = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RAGResponse(BaseModel):
@@ -23,3 +24,5 @@ class RAGResponse(BaseModel):
 class IngestResponse(BaseModel):
     status: str
     reports_ingested: int
+
+    model_config = ConfigDict(from_attributes=True)

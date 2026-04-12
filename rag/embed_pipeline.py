@@ -58,7 +58,7 @@ class EmbeddingEngine:
                 })
 
             # 2. Batch Encoding (Vectorization)
-            embeddings = self.model.encode(texts, show_progress_bar=True).tolist()
+            embeddings = self.model.encode(texts, show_progress_bar=False).tolist()
 
             # 3. Batch Upsert to Vector DB
             self.collection.upsert(

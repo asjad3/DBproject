@@ -1,5 +1,5 @@
-from fastapi import APIRouter
-from app.database import get_connection, release_connection
+from fastapi import APIRouter, HTTPException
+from app.database import get_cursor
 from app.schemas.incidents import IncidentReportCreate, IncidentReportResponse
 
 router = APIRouter(prefix="/incidents", tags=["Incident Reports"])
@@ -7,9 +7,7 @@ router = APIRouter(prefix="/incidents", tags=["Incident Reports"])
 
 @router.post("/", response_model=IncidentReportResponse, status_code=201)
 def create_incident(data: IncidentReportCreate):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute(
             """INSERT INTO incident_report (team_id, location_id, report_title,
                report_body, report_date, severity_flag, submitted_by)
@@ -19,11 +17,7 @@ def create_incident(data: IncidentReportCreate):
              data.submitted_by),
         )
         row = cur.fetchone()
-        conn.commit()
-        cur.close()
         return _map_report(row)
-    finally:
-        release_connection(conn)
 
 
 @router.get("/", response_model=list[IncidentReportResponse])
@@ -34,46 +28,38 @@ def list_incidents(
     date_to: str | None = None,
     limit: int = 50,
 ):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
-        query = "SELECT * FROM incident_report WHERE 1=1"
-        params = []
-        if severity:
-            query += " AND severity_flag = %s"
-            params.append(severity)
-        if location_id:
-            query += " AND location_id = %s"
-            params.append(location_id)
-        if date_from:
-            query += " AND report_date >= %s"
-            params.append(date_from)
-        if date_to:
-            query += " AND report_date <= %s"
-            params.append(date_to)
-        query += " ORDER BY report_date DESC LIMIT %s"
-        params.append(limit)
-        cur.execute(query, params)
+    conditions = []
+    params = []
+    if severity:
+        conditions.append("severity_flag = %s")
+        params.append(severity)
+    if location_id:
+        conditions.append("location_id = %s")
+        params.append(location_id)
+    if date_from:
+        conditions.append("report_date >= %s")
+        params.append(date_from)
+    if date_to:
+        conditions.append("report_date <= %s")
+        params.append(date_to)
+
+    where = " AND ".join(conditions) if conditions else "1=1"
+    params.append(limit)
+
+    with get_cursor() as cur:
+        cur.execute(f"SELECT * FROM incident_report WHERE {where} ORDER BY report_date DESC LIMIT %s", params)
         rows = cur.fetchall()
-        cur.close()
         return [_map_report(r) for r in rows]
-    finally:
-        release_connection(conn)
 
 
 @router.get("/{report_id}", response_model=IncidentReportResponse)
 def get_incident(report_id: int):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute("SELECT * FROM incident_report WHERE report_id = %s", (report_id,))
         row = cur.fetchone()
-        cur.close()
         if not row:
-            return None
+            raise HTTPException(404, "Incident report not found")
         return _map_report(row)
-    finally:
-        release_connection(conn)
 
 
 def _map_report(row):

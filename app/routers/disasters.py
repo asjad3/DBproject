@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.database import get_connection, release_connection
+from app.database import get_cursor
 from app.schemas.disasters import (
     DisasterCreate, DisasterResponse, DisasterDetailResponse,
     DisasterLocationResponse, DisasterImpactResponse,
@@ -10,9 +10,7 @@ router = APIRouter(prefix="/disasters", tags=["Disasters"])
 
 @router.post("/", response_model=DisasterResponse, status_code=201)
 def create_disaster(data: DisasterCreate):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute(
             """INSERT INTO disaster (disaster_type_id, disaster_name, severity_level,
                declaration_date, projected_end_date, description)
@@ -32,36 +30,23 @@ def create_disaster(data: DisasterCreate):
                  loc.affected_population, loc.gps_latitude, loc.gps_longitude),
             )
 
-        conn.commit()
-        cur.execute("SELECT * FROM disaster WHERE disaster_id = %s", (disaster_id,))
-        row = cur.fetchone()
-        cur.close()
         return _map_disaster(row)
-    finally:
-        release_connection(conn)
 
 
 @router.get("/", response_model=list[DisasterResponse])
 def list_disasters(status: str | None = None):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         if status:
             cur.execute("SELECT * FROM disaster WHERE status = %s ORDER BY declaration_date DESC", (status,))
         else:
             cur.execute("SELECT * FROM disaster ORDER BY declaration_date DESC")
         rows = cur.fetchall()
-        cur.close()
         return [_map_disaster(r) for r in rows]
-    finally:
-        release_connection(conn)
 
 
 @router.get("/{disaster_id}", response_model=DisasterDetailResponse)
 def get_disaster(disaster_id: int):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute("SELECT * FROM disaster WHERE disaster_id = %s", (disaster_id,))
         row = cur.fetchone()
         if not row:
@@ -72,30 +57,22 @@ def get_disaster(disaster_id: int):
             (disaster_id,),
         )
         locs = [_map_location(r) for r in cur.fetchall()]
-        cur.close()
 
         d = _map_disaster(row)
         return DisasterDetailResponse(**d.model_dump(), locations=locs)
-    finally:
-        release_connection(conn)
 
 
 @router.get("/{disaster_id}/impact", response_model=DisasterImpactResponse)
 def get_disaster_impact(disaster_id: int):
-    conn = get_connection()
-    try:
-        cur = conn.cursor()
+    with get_cursor() as cur:
         cur.execute(
             "SELECT * FROM v_disaster_impact_summary WHERE disaster_id = %s",
             (disaster_id,),
         )
         row = cur.fetchone()
-        cur.close()
         if not row:
             raise HTTPException(404, "Disaster not found")
         return _map_impact(row)
-    finally:
-        release_connection(conn)
 
 
 def _map_disaster(row):

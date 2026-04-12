@@ -1,34 +1,32 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date
-from typing import Optional
 
 
 class OrganizationCreate(BaseModel):
     org_category_id: int
     org_name: str
-    registration_number: Optional[str] = None
+    registration_number: str | None = None
     contact_email: str
-    contact_phone: Optional[str] = None
-    government_tier: Optional[str] = None
-    international_flag: Optional[bool] = None
-    registration_authority: Optional[str] = None
+    contact_phone: str | None = None
+    government_tier: str | None = None
+    international_flag: bool | None = None
+    registration_authority: str | None = None
 
 
 class OrganizationResponse(BaseModel):
     org_id: int
     org_category_id: int
     org_name: str
-    registration_number: Optional[str]
+    registration_number: str | None
     contact_email: str
-    contact_phone: Optional[str]
+    contact_phone: str | None
     approval_status: str
-    approval_date: Optional[date]
-    government_tier: Optional[str]
-    international_flag: Optional[bool]
-    registration_authority: Optional[str]
+    approval_date: date | None
+    government_tier: str | None
+    international_flag: bool | None
+    registration_authority: str | None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrganizationLeaderboardResponse(BaseModel):
@@ -38,4 +36,6 @@ class OrganizationLeaderboardResponse(BaseModel):
     total_commitments: int
     total_units_delivered: int
     total_units_committed: int
-    reliability_pct: Optional[float]
+    reliability_pct: float | None
+
+    model_config = ConfigDict(from_attributes=True)

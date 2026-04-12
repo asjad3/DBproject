@@ -1,29 +1,27 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date
-from typing import Optional
 
 
 class DisasterLocationCreate(BaseModel):
     province: str
     district: str
-    tehsil: Optional[str] = None
+    tehsil: str | None = None
     affected_population: int = 0
-    gps_latitude: Optional[float] = None
-    gps_longitude: Optional[float] = None
+    gps_latitude: float | None = None
+    gps_longitude: float | None = None
 
 
 class DisasterLocationResponse(BaseModel):
     location_id: int
     province: str
     district: str
-    tehsil: Optional[str]
+    tehsil: str | None
     affected_population: int
-    gps_latitude: Optional[float]
-    gps_longitude: Optional[float]
+    gps_latitude: float | None
+    gps_longitude: float | None
     location_status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DisasterCreate(BaseModel):
@@ -31,8 +29,8 @@ class DisasterCreate(BaseModel):
     disaster_name: str
     severity_level: str = "Medium"
     declaration_date: date
-    projected_end_date: Optional[date] = None
-    description: Optional[str] = None
+    projected_end_date: date | None = None
+    description: str | None = None
     locations: list[DisasterLocationCreate] = []
 
 
@@ -42,12 +40,11 @@ class DisasterResponse(BaseModel):
     disaster_name: str
     severity_level: str
     declaration_date: date
-    projected_end_date: Optional[date]
+    projected_end_date: date | None
     status: str
-    description: Optional[str]
+    description: str | None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DisasterDetailResponse(DisasterResponse):
@@ -66,3 +63,5 @@ class DisasterImpactResponse(BaseModel):
     registered_beneficiaries: int
     active_organizations: int
     total_units_distributed: int
+
+    model_config = ConfigDict(from_attributes=True)

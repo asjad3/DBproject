@@ -4,7 +4,7 @@ db-reset:
 	supabase db reset
 
 seed:
-	supabase db reset
+	@echo "Seeding is handled by db-reset. Run 'make db-reset' to reset and seed."
 
 api:
 	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

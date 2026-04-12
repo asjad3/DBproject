@@ -1,17 +1,16 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date
-from typing import Optional
 
 
 class BeneficiaryCreate(BaseModel):
     location_id: int
     cnic_or_id: str
     full_name: str
-    contact_number: Optional[str] = None
+    contact_number: str | None = None
     family_size: int = 1
-    address_province: Optional[str] = None
-    address_district: Optional[str] = None
-    address_street: Optional[str] = None
+    address_province: str | None = None
+    address_district: str | None = None
+    address_street: str | None = None
 
 
 class BeneficiaryResponse(BaseModel):
@@ -19,26 +18,25 @@ class BeneficiaryResponse(BaseModel):
     location_id: int
     cnic_or_id: str
     full_name: str
-    contact_number: Optional[str]
+    contact_number: str | None
     family_size: int
-    address_province: Optional[str]
-    address_district: Optional[str]
-    address_street: Optional[str]
+    address_province: str | None
+    address_district: str | None
+    address_street: str | None
     registration_date: date
     displacement_status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AidDistributionCreate(BaseModel):
     product_id: int
     program_id: int
     org_id: int
-    team_id: Optional[int] = None
+    team_id: int | None = None
     quantity_distributed: int
-    distribution_date: Optional[date] = None
-    notes: Optional[str] = None
+    distribution_date: date | None = None
+    notes: str | None = None
 
 
 class AidHistoryResponse(BaseModel):
@@ -54,5 +52,7 @@ class AidHistoryResponse(BaseModel):
     quantity_distributed: int
     distribution_date: date
     distributing_org: str
-    distributing_team: Optional[str]
+    distributing_team: str | None
     program_name: str
+
+    model_config = ConfigDict(from_attributes=True)

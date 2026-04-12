@@ -1,8 +1,8 @@
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-
 from fastapi import APIRouter
+from rag.retriever import RetrievalEngine
+from rag.generator import GenerationEngine
+from rag.db_connector import get_reports
+from rag.embed_pipeline import EmbeddingEngine
 from app.schemas.rag import RAGQuery, RAGResponse, RAGSource, IngestResponse
 
 router = APIRouter(prefix="/rag", tags=["RAG AI Assistant"])
@@ -10,9 +10,6 @@ router = APIRouter(prefix="/rag", tags=["RAG AI Assistant"])
 
 @router.post("/query", response_model=RAGResponse)
 def rag_query(data: RAGQuery):
-    from rag.retriever import RetrievalEngine
-    from rag.generator import GenerationEngine
-
     retriever = RetrievalEngine()
     generator = GenerationEngine()
 
@@ -31,9 +28,6 @@ def rag_query(data: RAGQuery):
 
 @router.post("/ingest", response_model=IngestResponse)
 def rag_ingest():
-    from rag.db_connector import get_reports
-    from rag.embed_pipeline import EmbeddingEngine
-
     reports = get_reports()
     engine = EmbeddingEngine()
     engine.ingest_reports(reports)

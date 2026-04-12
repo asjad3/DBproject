@@ -19,11 +19,11 @@ The schema is a PostgreSQL design with 17 tables covering disaster management, r
 
 ### FastAPI Backend (`app/`)
 
-Python FastAPI app with connection-pooled MySQL (via `mysql-connector-python`). Structure:
-- `app/main.py` — FastAPI entry point, includes 4 routers
-- `app/database.py` — MySQL connection pool (`get_connection()`)
-- `app/routers/` — API routers: `disasters.py`, `organizations.py`, `beneficiaries.py`, `programs.py` (currently stubs with prefix/tags only)
-- `app/schemas/` — Pydantic schemas (empty `__init__.py`)
+Python FastAPI app with connection-pooled PostgreSQL (via `psycopg2`). Structure:
+- `app/main.py` — FastAPI entry point, includes 6 routers + API key middleware + shutdown hook
+- `app/database.py` — PostgreSQL connection pool with lazy init (`get_connection()`, `get_cursor()` context manager)
+- `app/routers/` — API routers: `disasters.py`, `organizations.py`, `beneficiaries.py`, `programs.py`, `incidents.py`, `rag.py`
+- `app/schemas/` — Pydantic v2 schemas with `ConfigDict(from_attributes=True)`
 - `app/models/` — Data models (empty `__init__.py`)
 
 Start the dev server: `uvicorn app.main:app --reload`
@@ -31,7 +31,7 @@ Start the dev server: `uvicorn app.main:app --reload`
 ### RAG Pipeline (`rag/`)
 
 A retrieval-augmented generation pipeline for querying incident reports semantically:
-- `rag/db_connector.py` — Fetches reports from Supabase, PostgreSQL, or mock data (controlled by `DB_TYPE` env var)
+- `rag/db_connector.py` — Fetches reports from Supabase, PostgreSQL, MySQL, or mock data (controlled by `DB_TYPE` env var)
 - `rag/embed_pipeline.py` — Embeds reports into ChromaDB using `sentence-transformers/all-MiniLM-L6-v2`
 - `rag/retriever.py` — Semantic search against ChromaDB with optional metadata filters
 - `rag/generator.py` — Generates responses via Google Gemini (`gemini-3-flash-preview`) with source citations
@@ -65,15 +65,19 @@ pip install -r requirements.txt            # Install all dependencies
 ## Environment Variables
 
 See `.env.example` for required variables:
-- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` — MySQL connection
 - `SUPABASE_URL`, `SUPABASE_KEY` — Supabase client
-- `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_PASSWORD`, `PG_DATABASE` — PostgreSQL connection
+- `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_PASSWORD`, `PG_DATABASE` — PostgreSQL connection (FastAPI + RAG)
+- `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` — MySQL connection (RAG only)
 - `GEMINI_API_KEY` — Google Gemini API key
-- `DB_TYPE` — Data source for RAG: `supabase`, `postgres`, or `mysql` (default: `postgres`)
+- `DB_TYPE` — Data source for RAG: `supabase`, `postgres`, `mysql`, or `mock` (default: `postgres`)
 - `CHROMA_PATH` — Local path for ChromaDB vector store (default: `./chroma_db`)
+- `API_KEY` — Optional API key for FastAPI middleware
 
 ## Key Design Decisions
 
-- The FastAPI app uses MySQL (`mysql-connector-python`) while the RAG pipeline supports PostgreSQL/Supabase — these are separate data sources
+- Both the FastAPI app and the RAG pipeline use PostgreSQL as the primary data source
+- The RAG pipeline additionally supports Supabase, MySQL, and mock data via the `DB_TYPE` env var
+- Database connections use lazy initialization to avoid crashes on import
+- All routers use the `get_cursor()` context manager for consistent connection lifecycle
 - The RAG pipeline uses local ChromaDB (not a hosted vector store) for embeddings
 - Incident reports from `incident_report` table are the sole source material for the RAG AI assistant
