@@ -1,19 +1,24 @@
-import mysql.connector
-from mysql.connector import pooling
+import psycopg2
+import psycopg2.pool
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
-pool = pooling.MySQLConnectionPool(
-    pool_name="disasterlink_pool",
-    pool_size=5,
-    host=os.getenv("DB_HOST"),
-    port=int(os.getenv("DB_PORT", 3306)),
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-    database=os.getenv("DB_NAME"),
+pool = psycopg2.pool.SimpleConnectionPool(
+    minconn=1,
+    maxconn=10,
+    host=os.getenv("PG_HOST", "localhost"),
+    port=os.getenv("PG_PORT", "5432"),
+    user=os.getenv("PG_USER", "postgres"),
+    password=os.getenv("PG_PASSWORD", ""),
+    database=os.getenv("PG_DATABASE", "disasterlink"),
 )
 
+
 def get_connection():
-    return pool.get_connection()
+    return pool.getconn()
+
+
+def release_connection(conn):
+    pool.putconn(conn)
