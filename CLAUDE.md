@@ -43,11 +43,27 @@ Run individual components:
 - `python rag/retriever.py` — run a test retrieval query
 - `python rag/generator.py` — run the full RAG pipeline end-to-end
 
+### Streamlit Dashboard (`streamlit_app/`)
+
+A Streamlit UI that consumes the FastAPI backend:
+- `streamlit_app/app.py` — Main dashboard entry point
+- `streamlit_app/api.py` — HTTP client wrapper for FastAPI endpoints
+- `streamlit_app/components.py` — Reusable UI components
+
+Start the dashboard: `streamlit run streamlit_app/app.py`
+
 ## Common Commands
 
 ```bash
+# Makefile shortcuts
+make install                             # Install all Python dependencies
+make db-reset                            # Reset and seed the database
+make api                                 # Start FastAPI dev server (0.0.0.0:8000)
+make streamlit                           # Start Streamlit dashboard
+make dev                                 # Reset DB + start FastAPI
+
 # Database
-supabase db reset                          # Apply all migrations
+supabase db reset                          # Apply all migrations (includes seed data from 002_seed_data.sql)
 
 # Backend
 uvicorn app.main:app --reload              # Start FastAPI dev server
@@ -58,20 +74,25 @@ python rag/embed_pipeline.py               # Embed reports into vector DB
 python rag/retriever.py                    # Test semantic retrieval
 python rag/generator.py                    # Full RAG end-to-end test
 
+# Streamlit
+streamlit run streamlit_app/app.py         # Start the dashboard
+
 # Python dependencies
-pip install -r requirements.txt            # Install all dependencies
+pip install -r requirements.txt            # Install backend + RAG dependencies
+pip install -r requirements-streamlit.txt  # Install Streamlit dependencies
 ```
 
 ## Environment Variables
 
 See `.env.example` for required variables:
-- `SUPABASE_URL`, `SUPABASE_KEY` — Supabase client
+- `SUPABASE_URL`, `SUPABASE_KEY` — Supabase client (used by RAG when `DB_TYPE=supabase`)
 - `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_PASSWORD`, `PG_DATABASE` — PostgreSQL connection (FastAPI + RAG)
 - `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` — MySQL connection (RAG only)
 - `GEMINI_API_KEY` — Google Gemini API key
 - `DB_TYPE` — Data source for RAG: `supabase`, `postgres`, `mysql`, or `mock` (default: `postgres`)
 - `CHROMA_PATH` — Local path for ChromaDB vector store (default: `./chroma_db`)
-- `API_KEY` — Optional API key for FastAPI middleware
+- `API_KEY` — API key for FastAPI middleware (when set, all endpoints except `/`, `/health`, `/docs`, `/openapi.json`, `/redoc` require `X-API-Key` header)
+- `STREAMLIT_API_BASE_URL` — Base URL for FastAPI (used by Streamlit dashboard, default: `http://localhost:8000`)
 
 ## Key Design Decisions
 

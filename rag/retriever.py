@@ -16,7 +16,7 @@ DEFAULT_PATH = os.path.join(os.getcwd(), "chroma_db")
 CHROMA_PATH = os.getenv("CHROMA_PATH", DEFAULT_PATH)
 
 class RetrievalEngine:
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+    def __init__(self, model_name: str = "./models/all-MiniLM-L6-v2"):
         try:
             logger.info(f"Loading retrieval model: {model_name}...")
             self.model = SentenceTransformer(model_name)

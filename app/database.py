@@ -18,6 +18,7 @@ def _create_pool():
         user=os.getenv("PG_USER", "postgres"),
         password=os.getenv("PG_PASSWORD", ""),
         database=os.getenv("PG_DATABASE", "disasterlink"),
+        sslmode=os.getenv("PG_SSLMODE", "prefer"),
     )
 
 
