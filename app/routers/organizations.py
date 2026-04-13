@@ -64,8 +64,8 @@ def _map_org(row):
     return OrganizationResponse(
         org_id=row[0], org_category_id=row[1], org_name=row[2],
         registration_number=row[3], contact_email=row[4], contact_phone=row[5],
-        approval_status=row[6], approval_date=row[7], government_tier=row[8],
-        international_flag=row[9], registration_authority=row[10],
+        approval_status=row[6], approved_by_admin_id=row[7], approval_date=row[8],
+        government_tier=row[9], international_flag=row[10], registration_authority=row[11],
     )
 
 

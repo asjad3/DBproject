@@ -21,6 +21,7 @@ class OrganizationResponse(BaseModel):
     contact_email: str
     contact_phone: str | None
     approval_status: str
+    approved_by_admin_id: int | None
     approval_date: date | None
     government_tier: str | None
     international_flag: bool | None

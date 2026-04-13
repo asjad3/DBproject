@@ -1,7 +1,7 @@
 import os
 import logging
 from typing import List, Dict, Any
-from google import genai
+from groq import Groq
 from dotenv import load_dotenv
 
 # logging setup
@@ -11,15 +11,15 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 class GenerationEngine:
-    def __init__(self, model_name: str = "gemini-3-flash-preview"):
-        api_key = os.getenv("GEMINI_API_KEY")
+    def __init__(self, model_name: str = "llama-3.3-70b-versatile"):
+        api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
-            logger.critical("GEMINI_API_KEY not found in environment variables!")
+            logger.critical("GROQ_API_KEY not found in environment variables!")
             raise ValueError("API Key is required.")
-            
-        self.client = genai.Client(api_key=api_key)
+
+        self.client = Groq(api_key=api_key)
         self.model_name = model_name
-        
+
         # system's instructions for AI's persona and operational rules
         self.system_instruction = (
             "You are the DisasterLink AI Assistant, a professional disaster response coordinator for Pakistan.\n"
@@ -56,24 +56,24 @@ class GenerationEngine:
         try:
             # 1. Prepare the context
             context = self._format_context(retrieved_docs)
-            
+
             # 2. Build the user prompt
             user_prompt = f"CONTEXT FROM REPORTS:\n{context}\n\nUSER QUESTION: {query}"
 
-            # 3. Call Gemini with System Instructions
+            # 3. Call Groq with System Instructions
             logger.info(f"Generating response for query: {query[:50]}...")
-            response = self.client.models.generate_content(
+            response = self.client.chat.completions.create(
                 model=self.model_name,
-                contents=user_prompt,
-                config={
-                    "system_instruction": self.system_instruction,
-                    "temperature": 0.2, # Low temperature for factual accuracy
-                }
+                messages=[
+                    {"role": "system", "content": self.system_instruction},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
             )
 
             # 4. Package the response with metadata for the frontend
             return {
-                "answer": response.text,
+                "answer": response.choices[0].message.content,
                 "sources": [
                     {
                         "id": d["metadata"].get("report_id"),
@@ -85,7 +85,7 @@ class GenerationEngine:
             }
 
         except Exception as e:
-            logger.error(f"Gemini API Failure: {e}")
+            logger.error(f"Groq API Failure: {e}")
             return {
                 "answer": "An internal error occurred while generating the AI response.",
                 "sources": [],
@@ -94,21 +94,21 @@ class GenerationEngine:
 
 if __name__ == "__main__":
     from retriever import RetrievalEngine
-    
+
     try:
         retriever = RetrievalEngine()
         generator = GenerationEngine()
-        
+
         test_query = "What is the medical situation in Sindh?"
-     
+
         docs = retriever.retrieve(test_query)
-       
+
         result = generator.generate_response(test_query, docs)
-        
+
         print(f"\nAI RESPONSE:\n{result['answer']}")
         print("\nSOURCES CITED:")
         for s in result['sources']:
             print(f"- Report {s['id']} (Confidence: {s['score']})")
-            
+
     except Exception as e:
         logger.error(f"Pipeline test failed: {e}")
