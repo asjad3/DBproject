@@ -34,7 +34,7 @@ A retrieval-augmented generation pipeline for querying incident reports semantic
 - `rag/db_connector.py` — Fetches reports from Supabase, PostgreSQL, MySQL, or mock data (controlled by `DB_TYPE` env var)
 - `rag/embed_pipeline.py` — Embeds reports into ChromaDB using `sentence-transformers/all-MiniLM-L6-v2`
 - `rag/retriever.py` — Semantic search against ChromaDB with optional metadata filters
-- `rag/generator.py` — Generates responses via Google Gemini (`gemini-3-flash-preview`) with source citations
+- `rag/generator.py` — Generates responses via Groq (`llama-3.3-70b-versatile`) with source citations
 - `rag/mock_data.py` — 8 mock incident reports for testing without a database
 
 Run individual components:

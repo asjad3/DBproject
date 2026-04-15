@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from app.database import get_cursor
 from app.schemas.disasters import (
     DisasterCreate, DisasterResponse, DisasterDetailResponse,
-    DisasterLocationResponse, DisasterImpactResponse,
+    DisasterLocationResponse, DisasterLocationMapResponse, DisasterImpactResponse,
 )
 
 router = APIRouter(prefix="/disasters", tags=["Disasters"])
@@ -42,6 +42,28 @@ def list_disasters(status: str | None = None):
             cur.execute("SELECT * FROM disaster ORDER BY declaration_date DESC")
         rows = cur.fetchall()
         return [_map_disaster(r) for r in rows]
+
+
+@router.get("/locations", response_model=list[DisasterLocationMapResponse])
+def list_disaster_locations(status: str | None = None):
+    with get_cursor() as cur:
+        query = """
+            SELECT d.disaster_id, d.disaster_name, dt.type_name AS disaster_type,
+                   d.severity_level, d.status,
+                   dl.location_id, dl.province, dl.district, dl.tehsil,
+                   dl.gps_latitude, dl.gps_longitude,
+                   dl.affected_population, dl.location_status
+            FROM disaster d
+            JOIN disaster_type dt ON dt.disaster_type_id = d.disaster_type_id
+            JOIN disaster_location dl ON dl.disaster_id = d.disaster_id
+        """
+        params = None
+        if status:
+            query += " WHERE d.status = %s"
+            params = (status,)
+        query += " ORDER BY d.declaration_date DESC, dl.location_id"
+        cur.execute(query, params)
+        return [_map_location_row(r) for r in cur.fetchall()]
 
 
 @router.get("/{disaster_id}", response_model=DisasterDetailResponse)
@@ -88,6 +110,16 @@ def _map_location(row):
         location_id=row[0], province=row[2], district=row[3], tehsil=row[4],
         affected_population=row[5], gps_latitude=row[6], gps_longitude=row[7],
         location_status=row[8],
+    )
+
+
+def _map_location_row(row):
+    return DisasterLocationMapResponse(
+        disaster_id=row[0], disaster_name=row[1], disaster_type=row[2],
+        severity_level=row[3], status=row[4],
+        location_id=row[5], province=row[6], district=row[7], tehsil=row[8],
+        gps_latitude=row[9], gps_longitude=row[10],
+        affected_population=row[11], location_status=row[12],
     )
 
 

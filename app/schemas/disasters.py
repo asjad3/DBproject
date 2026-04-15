@@ -51,6 +51,24 @@ class DisasterDetailResponse(DisasterResponse):
     locations: list[DisasterLocationResponse] = []
 
 
+class DisasterLocationMapResponse(BaseModel):
+    disaster_id: int
+    disaster_name: str
+    disaster_type: str
+    severity_level: str
+    status: str
+    location_id: int
+    province: str
+    district: str
+    tehsil: str | None
+    gps_latitude: float | None
+    gps_longitude: float | None
+    affected_population: int
+    location_status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class DisasterImpactResponse(BaseModel):
     disaster_id: int
     disaster_name: str

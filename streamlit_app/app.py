@@ -1,15 +1,17 @@
 import streamlit as st
 import pandas as pd
+import folium
+from streamlit_folium import st_folium
 from datetime import date
 from api import get, post
-from components import stat_card, data_table, severity_color, format_date
+from components import stat_card, data_table, severity_color, format_date, severity_to_color
 
 st.set_page_config(page_title="DisasterLink", page_icon="🚨", layout="wide")
 st.title("DisasterLink Dashboard")
 
 page = st.sidebar.selectbox(
     "Navigate",
-    ["Dashboard", "Disasters", "Organizations", "Programs", "Incident Reports", "AI Assistant"],
+    ["Dashboard", "3D Map", "Disasters", "Organizations", "Programs", "Incident Reports", "AI Assistant"],
 )
 
 # ─── Dashboard ───────────────────────────────────────────────────────────────
@@ -53,6 +55,88 @@ if page == "Dashboard":
             data_table(df)
     except Exception as e:
         st.error(f"Failed to load dashboard: {e}")
+
+# ─── 3D Map ──────────────────────────────────────────────────────────────────
+elif page == "3D Map":
+    st.subheader("Disaster Heatmap")
+    st.caption("Click a marker to view full disaster details.")
+
+    try:
+        locations = get("/disasters/locations")
+
+        if not locations:
+            st.info("No disaster locations with GPS data found.")
+        else:
+            with_gps = [loc for loc in locations if loc.get("gps_latitude") and loc.get("gps_longitude")]
+            if not with_gps:
+                st.warning("No GPS coordinates available for any disaster locations.")
+            else:
+                # ── Build the Folium map ──────────────────────────────────
+                m = folium.Map(
+                    location=[30.0, 69.0],
+                    zoom_start=5,
+                    tiles="CartoDB dark_matter",
+                )
+
+                # Heatmap overlay
+                from folium.plugins import HeatMap
+                heat_data = [
+                    [loc["gps_latitude"], loc["gps_longitude"], loc["affected_population"] / 1000]
+                    for loc in with_gps
+                ]
+                HeatMap(heat_data, radius=40, blur=30, max_zoom=1).add_to(m)
+
+                # ── Clickable markers ─────────────────────────────────────
+                for loc in with_gps:
+                    sev = loc["severity_level"]
+                    color_map = {
+                        "Critical": "red",
+                        "High": "orange",
+                        "Medium": "yellow",
+                        "Low": "green",
+                    }
+                    marker_color = color_map.get(sev, "gray")
+
+                    popup_html = f"""
+                    <div style="font-family: sans-serif; min-width: 220px;">
+                        <h4 style="margin: 0 0 8px 0; color: #333;">{loc['disaster_name']}</h4>
+                        <table style="font-size: 13px; border-collapse: collapse; width: 100%;">
+                            <tr><td style="padding: 3px 0; color: #666; width: 120px;"><b>Type</b></td><td style="padding: 3px 0;">{loc['disaster_type']}</td></tr>
+                            <tr><td style="padding: 3px 0; color: #666;"><b>Severity</b></td><td style="padding: 3px 0;"><span style="color: {marker_color}; font-weight: bold;">{sev}</span></td></tr>
+                            <tr><td style="padding: 3px 0; color: #666;"><b>Status</b></td><td style="padding: 3px 0;">{loc['status']}</td></tr>
+                            <tr><td style="padding: 3px 0; color: #666;"><b>Affected</b></td><td style="padding: 3px 0;">{loc['affected_population']:,} people</td></tr>
+                            <tr><td style="padding: 3px 0; color: #666;"><b>Location</b></td><td style="padding: 3px 0;">{loc['district']}, {loc['province']}</td></tr>
+                            <tr><td style="padding: 3px 0; color: #666;"><b>Tehsil</b></td><td style="padding: 3px 0;">{loc.get('tehsil') or '—'}</td></tr>
+                            <tr><td style="padding: 3px 0; color: #666;"><b>GPS</b></td><td style="padding: 3px 0;">{loc['gps_latitude']}, {loc['gps_longitude']}</td></tr>
+                        </table>
+                    </div>
+                    """
+
+                    folium.Marker(
+                        location=[loc["gps_latitude"], loc["gps_longitude"]],
+                        popup=folium.Popup(popup_html, max_width=300),
+                        tooltip=f"{loc['disaster_name']} ({sev})",
+                        icon=folium.Icon(color=marker_color, icon="info-sign"),
+                    ).add_to(m)
+
+                # ── Legend ────────────────────────────────────────────────
+                legend_html = """
+                <div style="position: fixed; bottom: 30px; left: 30px; z-index: 1000;
+                            background: white; padding: 12px 16px; border-radius: 8px;
+                            box-shadow: 0 2px 6px rgba(0,0,0,0.3); font-size: 13px; font-family: sans-serif;">
+                    <b style="font-size: 14px;">Severity</b><br/>
+                    <span style="color: red; font-weight: bold;">&#9679;</span> Critical<br/>
+                    <span style="color: orange; font-weight: bold;">&#9679;</span> High<br/>
+                    <span style="color: #d4a017; font-weight: bold;">&#9679;</span> Medium<br/>
+                    <span style="color: green; font-weight: bold;">&#9679;</span> Low
+                </div>
+                """
+                m.get_root().html.add_child(folium.Element(legend_html))
+
+                st_folium(m, width="100%", height=600)
+
+    except Exception as e:
+        st.error(f"Failed to load map data: {e}")
 
 # ─── Disasters ───────────────────────────────────────────────────────────────
 elif page == "Disasters":
